@@ -186,3 +186,9 @@ figures/
 
 # Models
 *.pth
+
+# API Keys
+*.key
+
+# Data files
+estimates.json
