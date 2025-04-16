@@ -174,8 +174,24 @@ if __name__ == '__main__':
 
             # Replace missing numbers with zeros
             df["Fuel used (trip)(gal)"] = df["Fuel used (trip)(gal)"].replace('-', '0')
-            # Calculate the fuel used
-            df["Fuel used (inst)"] = df["Fuel used (trip)(gal)"].astype(float).diff().fillna(0)
+            # Calculate the fuel used for the last second
+            try:
+                fuel_next = df["Fuel used (trip)(gal)"].iloc[:-1].astype(float)
+            except Exception as ex:
+                print(ex)
+                raise
+            # If more than an ounce of fuel is used in the first row, duplicate the first value
+            if fuel_next.iloc[0] > 0.008:
+                fuel_next = pd.concat((pd.Series(fuel_next.iloc[0]), fuel_next), ignore_index=True)
+            else:
+                fuel_next = pd.concat((pd.Series(float(0)), fuel_next), ignore_index=True)
+            try:
+                df["Fuel used (inst)"] = np.abs(
+                    fuel_next - df["Fuel used (trip)(gal)"].astype(float)
+                )
+            except Exception as ex:
+                print(ex)
+                raise
             # Find the max used
             if (x := max(df["Fuel used (inst)"])) > max_fuel_used:
                 max_fuel_used = x
