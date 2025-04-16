@@ -21,6 +21,9 @@ def load_data(data_dir: str = "./cleaned_data") -> List[pd.DataFrame]:
     # Adapted from Sam's code in data_loading/vehicle_dataset.py
     file_list = [os.path.join(data_dir, f) for f in os.listdir(data_dir) if f.endswith('.csv')]
     dfs = [pd.read_csv(f) for f in tqdm(file_list, desc="Loading Data Files")]
+    # Trim space from column names
+    for df in dfs:
+        df.columns = df.columns.str.strip()
     return dfs
 
 
@@ -85,13 +88,16 @@ def make_requests(
         request.miles = miles[i]
         request.speed_mph = speeds[i]
         request.grade_percent = grades[i]
-        text_list.append(request.make_request().text)
+        text_list.append({'routee_estimate': request.make_request().json()["route"][0]['energy_estimate']})
     return text_list
 
 
 # ================================================================================================
 if __name__ == "__main__":
     dataframes = load_data()
+    for i, dataframe in enumerate(dataframes):
+        cols = list(dataframe.columns)
+        assert "Grade" in cols, i
     grade_averages = get_averages(dataframes, "Grade")
     speed_averages = get_averages(dataframes, "Speed (OBD)(mph)")
     durations = calculate_duration(dataframes)
@@ -100,6 +106,6 @@ if __name__ == "__main__":
         id=1, miles=20, speed_mph=40, grade_percent=10
     )
     req.load_api_key("./RouteE.key")
-    responses = make_requests(req, grade_averages, speed_averages, durations, time_delay=10)
+    responses = make_requests(req, grade_averages, speed_averages, durations, time_delay=0)
     with open("estimates.json", 'w', encoding="utf-8") as results:
-        json.dump(responses, results)
+        json.dump(responses, results, indent=4)

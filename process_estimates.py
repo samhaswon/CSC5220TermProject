@@ -38,18 +38,22 @@ if __name__ == '__main__':
     # Get the fuel used for each trip
     df_used = []
     for df in dataframes:
-        fuel_used = np.sum(df["Fuel used (inst)"])
-        df_used.append(fuel_used)
+        # fuel_used = np.sum(df["Fuel used (inst)"])
+        df_used.append(df["Fuel used (trip)(gal)"].iloc[-1])
 
     # RouteE things
     with open("estimates.json", "r", encoding="utf-8") as json_file:
         estimates = json.load(json_file)
     used = []
     for estimate in estimates:
-        used.append(estimate['route'][0]['energy_estimate'])
+        used.append(estimate['routee_estimate'])
+
+    df_used_total = sum(df_used)
+    used_total = sum(used)
 
     # Summary
     print(f"{sum(used)=}")
     print(f"{sum(df_used)=}")
-    print(f"Off by {abs(sum(df_used) - sum(used))} gallons")
+    print(f"Off by {abs(df_used_total - used_total)} gallons")
+    print(f"Percent error: {abs((used_total - df_used_total) / df_used_total) * 100:.4f}%")
     print(f"R²: {r2_score(df_used, used)}")
