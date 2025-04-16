@@ -1,3 +1,6 @@
+"""
+Estimates route fuel usage with NREL's RouteE API
+"""
 import datetime
 import json
 import os
@@ -5,16 +8,15 @@ from time import sleep
 from typing import List
 
 import pandas as pd
-import requests
 from tqdm import tqdm
-
+# pylint: disable=import-error
 import NREL_API
 
 
-# ======================================================================================================================
+# ================================================================================================
 def load_data(data_dir: str = "./cleaned_data") -> List[pd.DataFrame]:
     """
-
+    Loads the dataset.
     """
     # Adapted from Sam's code in data_loading/vehicle_dataset.py
     file_list = [os.path.join(data_dir, f) for f in os.listdir(data_dir) if f.endswith('.csv')]
@@ -24,9 +26,9 @@ def load_data(data_dir: str = "./cleaned_data") -> List[pd.DataFrame]:
 
 def calculate_duration(data: List[pd.DataFrame]) -> List[datetime.timedelta]:
     """
-
+    Calculates the duration of a trip
     """
-    durations = []
+    trip_durations = []
     for frame in data:
         # What a nightmare this is : )
         start_time = frame["GPS Time"].head(1).iloc(0)[0]
@@ -34,7 +36,8 @@ def calculate_duration(data: List[pd.DataFrame]) -> List[datetime.timedelta]:
         start_time = start_time.split(' ')
         parsed_time = start_time[3].split(':')
         start_time = datetime.datetime(year=int(start_time[5]),
-                                       month=datetime.datetime.strptime(start_time[1], "%b").month,
+                                       month=datetime.datetime.strptime(
+                                           start_time[1], "%b").month,
                                        day=int(start_time[2]),
                                        hour=int(parsed_time[0]),
                                        minute=int(parsed_time[1]),
@@ -47,52 +50,56 @@ def calculate_duration(data: List[pd.DataFrame]) -> List[datetime.timedelta]:
                                      hour=int(parsed_time[0]),
                                      minute=int(parsed_time[1]),
                                      second=int(parsed_time[2]))
-        durations.append(end_time - start_time)
-    return durations
+        trip_durations.append(end_time - start_time)
+    return trip_durations
 
 
 def get_averages(data: List[pd.DataFrame], parameter: str) -> List[float]:
     """
-
+    Averages the relevant metrics of the data.
     """
     avgs = [frame[parameter].mean().item() for frame in data]
     return avgs
 
 
-def calculate_distance(avg_speeds: List[float], durations: List[datetime.timedelta]) -> List[float]:
+def calculate_distance(avg_speeds: List[float], trip_durations: List[datetime.timedelta]) -> List[float]:
     """
-
+    Calculates the distance of the trip.
     """
     miles = []
     for i in range(0, len(avg_speeds)):
-        miles.append(avg_speeds[i] * (durations[i].total_seconds() / 3600))
+        miles.append(avg_speeds[i] * (trip_durations[i].total_seconds() / 3600))
     return miles
 
 
-def make_requests(req: NREL_API.Request, grades: List[float], speeds: List[float], durations: List[datetime.timedelta],
-                  time_delay: int = 5) -> List[requests.Response]:
+def make_requests(
+        request: NREL_API.Request, grades: List[float], speeds: List[float],
+        trip_duration: List[datetime.timedelta], time_delay: int = 5) -> list[str]:
     """
-
+    Makes the requests to NREL's RouteE API
     """
-    miles = calculate_distance(speeds, durations)
+    miles = calculate_distance(speeds, trip_duration)
     text_list = []
     for i in tqdm(range(0, len(grades)), desc="Requesting RouteE Data"):
         sleep(time_delay)
-        req.miles = miles[i]
-        req.speed_mph = speeds[i]
-        req.grade_percent = grades[i]
-        text_list.append(req.make_request().text)
-    return (text_list)
+        request.miles = miles[i]
+        request.speed_mph = speeds[i]
+        request.grade_percent = grades[i]
+        text_list.append(request.make_request().text)
+    return text_list
 
 
-# ======================================================================================================================
+# ================================================================================================
 if __name__ == "__main__":
     dataframes = load_data()
     grade_averages = get_averages(dataframes, "Grade")
     speed_averages = get_averages(dataframes, "Speed (OBD)(mph)")
     durations = calculate_duration(dataframes)
-    req = NREL_API.Request(model="2016_TOYOTA_Corolla_4cyl_2WD", id=1, miles=20, speed_mph=40, grade_percent=10)
+    req = NREL_API.Request(
+        model="2016_TOYOTA_Corolla_4cyl_2WD",
+        id=1, miles=20, speed_mph=40, grade_percent=10
+    )
     req.load_api_key("./RouteE.key")
     responses = make_requests(req, grade_averages, speed_averages, durations, time_delay=10)
-    with open("estimates.json", 'w') as results:
+    with open("estimates.json", 'w', encoding="utf-8") as results:
         json.dump(responses, results)

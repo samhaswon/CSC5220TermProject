@@ -42,7 +42,7 @@ if __name__ == '__main__':
         df_used.append(fuel_used)
 
     # RouteE things
-    with open("estimates.json", "r") as json_file:
+    with open("estimates.json", "r", encoding="utf-8") as json_file:
         estimates = json.load(json_file)
     used = []
     for estimate in estimates:
