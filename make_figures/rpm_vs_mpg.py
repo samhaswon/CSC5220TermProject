@@ -29,6 +29,6 @@ def make_rpm_mpg_plot():
         "Average MPG",
         "Engine RPM",
         "Average Miles Per Gallon (mpg)",
-        "RPM vs. Speed (MPH)",
+        "RPM vs. MPG",
         "figures/rpm_vs_mpg.png"
     )
